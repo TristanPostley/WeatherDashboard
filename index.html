@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    <!-- Bootstrap CSS CDN  -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css" />
+    <!-- Font Awesome CSS Icons (For cool glyphicons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/css/all.min.css">
+    
+    <link
+    rel="stylesheet"
+    href="https://use.fontawesome.com/releases/v5.8.1/css/all.css"
+    integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf"
+    crossorigin="anonymous"
+    />  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-dark bg-dark">
+        <h1 class="text-white mx-auto">Weather Dashboard</h1>
+    </nav>
+
+    <div class ="row" style="height: 1000px;">
+        <div class="col-md-3" style="background-color: rgb(241, 241, 241);">
+            <div class="container">
+                <h3>Search for a City:</h3>
+                <div class="input-group mb-3 w-75">
+                    <input type="text" class="form-control" id="search-box" placeholder="Search" aria-label="Search" aria-describedby="button-addon2">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary bg-primary" type="submit" id="search-button"><i class="fas fa-search text-white"></i></button>
+                    </div>
+                </div>
+                <!-- This is where saved locations go -->
+                <div class="btn-group-vertical w-100" id="location-list">
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9 p-3">
+            
+            <div class="container border m-3">
+                <h2 id="main-title"></h2>
+                <p id="temperature"></p>
+                <p id="humidity"></p>
+                <p id="wind-speed"></p>
+                <!-- <p id="UV" class="float-left">UV Index: </p> -->
+            </div>
+
+            <h3 class="p-3">5-Day Forecast</h3>
+            <div class="forecast"></div>
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function(){
+
+            var APIKEY = "a60f7357ad0c0592d7b7676e17d0cd28";
+
+            if(!localStorage.getItem("weatherLocationList")) var locationList = [];
+            else {
+                locationList = JSON.parse(localStorage.getItem("weatherLocationList"));
+                Render(locationList[locationList.length-1])
+            }
+
+            locationList.forEach(function(item){
+                var newButton = $('<button type="button" class="location text-left btn border btn-light"></button>');
+                newButton.text(item);
+                $("#location-list").append(newButton);
+            })
+
+            $("#search-button").click(function(){
+                var location = $("#search-box").val();
+                $("#search-box").val("");
+                if(location == "") return;
+                Render(location);                
+            })
+
+            $(document).on("click", ".location", function(event){
+                var location = event.target.innerHTML;
+                console.log(location);
+                Render(location);
+            })
+                
+            function Render(location){
+
+                $.ajax({
+                    url: "https://api.openweathermap.org/data/2.5/forecast?q=" + location + "&appid=" + APIKEY,
+                    method: "GET",
+                    success: function(){
+                        if(!locationList[locationList.indexOf(location)]){
+                            locationList.push(location);
+                        }
+
+                        $("#location-list").empty();
+                        locationList.forEach(function(item){
+                            var newButton = $('<button type="button" class="location text-left btn border btn-light"></button>');
+                            newButton.text(item);
+                            $("#location-list").append(newButton);
+                        })
+
+                        localStorage.setItem("weatherLocationList", JSON.stringify(locationList));
+
+                    }
+                })
+                    .then(function(response){
+                        // console.log(response);
+                        // console.log(moment().add(1, 'days').format('l'));
+                        $("#main-title").html(response.city.name + " " + moment().format('l'))
+                        var wicon = $("<img>").attr("src", "https://openweathermap.org/img/w/" + response.list[0].weather[0].icon + ".png")
+                        $("#main-title").append(wicon);
+                        $("#temperature").html("Temperature: " + (9/5*(parseFloat(response.list[0].main.temp) - 273) + 32).toFixed(2) + " &degF");
+                        $("#humidity").html("Humidity: " + response.list[0].main.humidity + "%");
+                        $("#wind-speed").html("Wind Speed: " + (response.list[0].wind.speed * 2.23694).toFixed(2) + " MPH");
+                        
+                        // UV
+                        var lat = "&lat=" + response.city.coord.lat;
+                        var lon = "&lon=" + response.city.coord.lon;
+
+                        $.ajax({
+                            url: "http://api.openweathermap.org/data/2.5/uvi?appid=" + APIKEY + lat + lon,
+                            method: "GET",
+                            dataType: "json"
+                        
+                        }).then(function(uvResponse){
+                                // console.log("UV");
+                                console.log(response);
+
+                                var UVText = $("<div>").text("UV Index: ");
+                                UVText.attr("style", "display: inline;");
+                                var UVvalue = $("<div>").html(uvResponse.value);
+
+                                if(3 <= uvResponse.value && uvResponse.value < 5) UVvalue.attr("style", "color: black; display: inline; background-color: yellow;");
+                                else if(5 <= uvResponse.value && uvResponse.value < 7) UVvalue.attr("style", "color: white; display: inline; background-color: orange;");
+                                else if(7 <= uvResponse.value && uvResponse.value < 10) UVvalue.attr("style", "color: white; display: inline; background-color: red;");
+                                else if(10 <= uvResponse.value) UVvalue.attr("style", "color: white; display: inline; background-color: violet;");
+
+                                $("#wind-speed").append("<br><br>", UVText, UVvalue);
+                        })
+
+                        $(".forecast").empty();
+                        for(var i = 0; i < 5; i++){
+                            var card = $('<div class="card float-left bg-primary text-white">');
+                            var cardBody = $('<div class="card-body">');
+                            var cardDate = $('<h5 class="card-title"></h5>');
+                            cardDate.html(moment().add(i+1, 'days').format('l'));
+                            var wicon = $("<img>").attr("src", "https://openweathermap.org/img/w/" + response.list[7 + (i*8)].weather[0].icon + ".png")
+                            var cardTemp = $('<p class="card-text"></p>');
+                            cardTemp.html("Temp: " + (9/5*(parseFloat(response.list[7 + (i*8)].main.temp) - 273) + 32).toFixed(2) + " &degF");
+                            var cardHumidity = $('<p class="card-text"></p>');
+                            cardHumidity.html("Humidity: " + response.list[7 + (i*8)].main.humidity + "%")
+
+                            cardBody.append(cardDate);
+                            cardBody.append(wicon);
+                            cardBody.append(cardTemp);
+                            cardBody.append(cardHumidity);
+                            card.append(cardBody);
+
+                            $(".forecast").append(card);
+                        }
+                        
+                    })
+            }
+        })
+    </script>
+</body>
+</html>
