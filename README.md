@@ -5,3 +5,5 @@ It will show the forecast for that city for the next 5 days
 It saves a list of the cities a user has searched for locally, for easy access
 
 It uses the OpenWeather API to retrieve this information
+
+Deployed at https://tristanpostley.github.io/WeatherDashboard/
